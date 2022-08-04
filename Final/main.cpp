@@ -8,6 +8,11 @@
 #include "shader_m.h"
 #include "camera.h"
 #include "model.h"
+#include "renderable.h"
+#include "grass_renderable.h"
+#include "elbow_renderable.h"
+#include "straight_renderable.h"
+#include "cabin_renderable.h"
 
 #include <iostream>
 #include <filesystem>
@@ -16,7 +21,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput(GLFWwindow* window);
-void renderScene(Shader shader, Model straight, Model elbow, Model grass, Model cabin);
+void renderScene(Shader shader, vector<Renderable*> models);
 void generateTerrain();
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -36,6 +41,8 @@ float lastFrame = 0.0f;
 const int terrainHeight = 10;
 const int terrainWidth = 10;
 std::string terrainData[terrainHeight][terrainWidth];
+
+
 
 int main()
 {
@@ -94,12 +101,19 @@ int main()
     //Model ourModel("resources/objects/backpack/backpack.obj");
     //Model ourModel2("resources/objects/tree2/tree.obj");
     //Model ourModel3("resources/objects/tree3/tree4.obj");
-    Model straight("resources/objects/straight_path/straight_path.obj");
-    Model elbow("resources/objects/elbow_path/elbow_path.obj");
-    Model grass("resources/objects/grass/grass.obj");
-    Model shrine("resources/objects/shrine/shrine.obj");
+    //Model straight("resources/objects/straight_path/straight_path.obj");
+    //Model elbow("resources/objects/elbow_path/elbow_path.obj");
+    //Model grass("resources/objects/grass/grass.obj");
+    //Model shrine("resources/objects/shrine/shrine.obj");
     //Model cabin("resources/objects/cabin/cabin.obj");
 
+
+    vector<Renderable*> models;
+    
+    models.push_back(new Grass);
+    models.push_back(new StraightPath);
+    models.push_back(new ElbowPath);
+    models.push_back(new Cabin);
 
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -133,7 +147,7 @@ int main()
         ourShader.setMat4("view", view);
 
         // render the loaded model
-        renderScene(ourShader, straight, elbow, grass, shrine);
+        renderScene(ourShader, models);
 
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -204,8 +218,14 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
-void renderScene(Shader shader, Model straight, Model elbow, Model grass, Model cabin)
+void renderScene(Shader shader, vector<Renderable*> models)
 {
+    // [0] = grass
+    // [1] = straightpath
+    // [2] = elbowpath
+    // [3] = cabin
+    //
+    
     glm::mat4 model = glm::mat4(1.0f);
 
     for (int i = 0; i < terrainHeight; i++)
@@ -217,53 +237,58 @@ void renderScene(Shader shader, Model straight, Model elbow, Model grass, Model 
             if (terrainData[i][j].compare("pV") == 0)
             {
                 shader.setMat4("model", model);
-                straight.Draw(shader);
+                models[1]->Draw(model, shader);
             }
             else if (terrainData[i][j].compare("pH") == 0)
             {
                 model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 shader.setMat4("model", model);
-                straight.Draw(shader);
+                models[1]->Draw(model, shader);
             }
             else if (terrainData[i][j].compare("pNW") == 0)
             {
                 shader.setMat4("model", model);
-                elbow.Draw(shader);
+                models[2]->Draw(model, shader);
             }
             else if (terrainData[i][j].compare("pSW") == 0)
             {
                 model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 shader.setMat4("model", model);
-                elbow.Draw(shader);
+                models[2]->Draw(model, shader);
             }
             else if (terrainData[i][j].compare("pNE") == 0)
             {
                 model = glm::rotate(model, glm::radians(270.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 shader.setMat4("model", model);
-                elbow.Draw(shader);
+                models[2]->Draw(model, shader);
             }
             else if (terrainData[i][j].compare("pSE") == 0)
             {
                 model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 shader.setMat4("model", model);
-                elbow.Draw(shader);
+                models[2]->Draw(model, shader);
             }
             else if (terrainData[i][j].compare("1") == 0)
             {
                 shader.setMat4("model", model);
-                cabin.Draw(shader);
+                models[0]->Draw(model, shader);
+            }
+            else if (terrainData[i][j].compare("2") == 0)
+            {
+                shader.setMat4("model", model);
+                models[3]->Draw(model, shader);
             }
             else
             {
                 shader.setMat4("model", model);
-                grass.Draw(shader);
+                models[0]->Draw(model, shader);
             }
         }
     }
 
 
-    shader.setMat4("model", model);
-    elbow.Draw(shader);
+    //shader.setMat4("model", model);
+    //elbow.Draw(shader);
 
     //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
     ////model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
@@ -284,7 +309,7 @@ void generateTerrain()
     // pSW == south-west path
     // pNW == north-west path
     // 1 == shrine
-    // 2 == bridge
+    // 2 == cabin
     // 3 == item3
     // 4 == item4
     bool pathAccepted = false;
@@ -302,8 +327,8 @@ void generateTerrain()
     
 
         bool hasShrine = false;
-        bool hasBridge = false;
         bool hasCabin = false;
+        bool hasItem3 = false;
         bool hasItem4 = false;
         int pathRand;
         srand(time(NULL));
@@ -567,7 +592,7 @@ void generateTerrain()
         {
             for (int j = 0; j < 10; j++) 
             {
-                if (terrainData[i][j].compare("0") == 0 && (hasShrine == false || hasBridge == false || hasCabin == false || hasItem4 == false))
+                if (terrainData[i][j].compare("0") == 0 && (hasShrine == false || hasCabin == false || hasItem3 == false || hasItem4 == false))
                 {
                     //int g = rand() % 25;
                     //cout << g << endl;
@@ -583,16 +608,16 @@ void generateTerrain()
                                 hasShrine = true;
                                 itemTaken = true;
                             }
-                            if (t == 2 && hasBridge == false)
+                            if (t == 2 && hasCabin == false)
                             {
                                 terrainData[i][j] = "2";
-                                hasBridge = true;
+                                hasCabin = true;
                                 itemTaken = true;
                             }
-                            if (t == 3 && hasCabin == false)
+                            if (t == 3 && hasItem3 == false)
                             {
                                 terrainData[i][j] = "3";
-                                hasCabin = true;
+                                hasItem3 = true;
                                 itemTaken = true;
                             }
                             if (t == 4 && hasItem4 == false)

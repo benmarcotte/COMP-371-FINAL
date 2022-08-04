@@ -137,6 +137,7 @@
     <ClCompile Include="stb.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cabin_renderable.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="glm\common.hpp" />
     <ClInclude Include="glm\detail\compute_common.hpp" />
@@ -420,6 +421,10 @@
     <ClInclude Include="glm\vec3.hpp" />
     <ClInclude Include="glm\vec4.hpp" />
     <ClInclude Include="glm\vector_relational.hpp" />
+    <ClInclude Include="elbow_renderable.h" />
+    <ClInclude Include="grass_renderable.h" />
+    <ClInclude Include="straight_renderable.h" />
+    <ClInclude Include="renderable.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="shader.h" />
     <ClInclude Include="model.h" />
