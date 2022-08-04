@@ -432,8 +432,8 @@
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="1.model_loading.vs" />
-    <Text Include="1.model_loading.fs" />
+    <Text Include="vertexShader.glsl" />
+    <Text Include="fragmentShader.glsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="glm\detail\func_common.inl" />

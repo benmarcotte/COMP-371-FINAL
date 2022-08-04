@@ -916,10 +916,10 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="1.model_loading.vs">
+    <Text Include="vertexShader.glsl">
       <Filter>Shaders</Filter>
     </Text>
-    <Text Include="1.model_loading.fs">
+    <Text Include="fragmentShader.glsl">
       <Filter>Shaders</Filter>
     </Text>
   </ItemGroup>
