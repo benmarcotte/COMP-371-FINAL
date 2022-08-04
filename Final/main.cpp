@@ -30,6 +30,7 @@ const unsigned int SCR_HEIGHT = 600;
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+glm::vec3 lightPos;
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -96,7 +97,7 @@ int main()
     // build and compile shaders
     // -------------------------
     Shader defaultShader("vertexShader.glsl", "fragmentShader.glsl");
-
+    Shader shadowShader("shadowVertexShader.glsl", "shadowFragmentShader.glsl");
     // load models
     // -----------
     //Model ourModel("resources/objects/backpack/backpack.obj");
@@ -125,6 +126,32 @@ int main()
         glm::vec3((float)(rand() % 100),  10.0f,(float)(rand() % 100))
     };
 
+    // configure depth map FBO
+    // -----------------------
+    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    unsigned int depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
+    // create depth texture
+    unsigned int depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    // attach depth texture as FBO's depth buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+    defaultShader.use();
+    defaultShader.setInt("shadowMap", 2);
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -151,13 +178,46 @@ int main()
         defaultShader.use();
 
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        lightPos = glm::vec3(-30.0f, 40.0f, 50.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
         glm::mat4 view = camera.GetViewMatrix();
+        //glm::mat4 projection = glm::ortho(-60.0f,60.0f, -30.0f, 30.0f, 1.0f, 150.0f);
+        //glm::mat4 view = glm::lookAt(lightPos, glm::vec3(50.0f, 0.0f, 50.0f), glm::vec3(0.0, 1.0, 0.0));
         defaultShader.setMat4("projection", projection);
         defaultShader.setMat4("view", view);
         generateLights(defaultShader, pointLightPositions);
 
+        //shader.setVec3("dirLight.direction", 0.2f, -1.0f, 0.3f);
+
+        //set lights
+        glm::mat4 lightProjection, lightView;
+        glm::mat4 lightSpaceMatrix;
+        float near_plane = 1.0f, far_plane = 1000.0f;
+        //lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane); // note that if you use a perspective projection matrix you'll have to change the light position as the current light position isn't enough to reflect the whole scene
+        lightProjection = glm::ortho(-60.0f, 60.0f, -25.0f, 25.0f, 1.0f, 150.0f);
+        lightView = glm::lookAt(lightPos, glm::vec3(50.0f, 0.0f, 50.0f), glm::vec3(0.0, 1.0, 0.0));
+        lightSpaceMatrix = lightProjection * lightView;
+        // render scene from light's point of view
+        shadowShader.use();
+        shadowShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        renderScene(shadowShader, models);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // reset viewport
+        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         // render the loaded model
+        defaultShader.use();
+        defaultShader.setVec3("lightPos", lightPos);
+        defaultShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+
         renderScene(defaultShader, models);
 
 
@@ -181,13 +241,13 @@ void processInput(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime*3.0f);
+        camera.ProcessKeyboard(FORWARD, deltaTime*6.0f);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime*3.0f);
+        camera.ProcessKeyboard(BACKWARD, deltaTime*6.0f);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime*3.0f);
+        camera.ProcessKeyboard(LEFT, deltaTime*6.0f);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime*3.0f);
+        camera.ProcessKeyboard(RIGHT, deltaTime*6.0f);
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -666,8 +726,8 @@ void generateLights(Shader shader, glm::vec3* pointLightPositions)
 {
     
 
-    shader.setFloat("material.shininess", 16.0f);
-  // directional light
+        shader.setFloat("material.shininess", 16.0f);
+        // directional light
         shader.setVec3("dirLight.direction", 0.2f, -1.0f, 0.3f);
         shader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
         shader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);

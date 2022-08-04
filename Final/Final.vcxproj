@@ -432,6 +432,8 @@
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="shadowVertexShader.glsl" />
+    <Text Include="shadowFragmentShader.glsl" />
     <Text Include="vertexShader.glsl" />
     <Text Include="fragmentShader.glsl" />
   </ItemGroup>

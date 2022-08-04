@@ -922,6 +922,12 @@
     <Text Include="fragmentShader.glsl">
       <Filter>Shaders</Filter>
     </Text>
+    <Text Include="shadowVertexShader.glsl">
+      <Filter>Shaders</Filter>
+    </Text>
+    <Text Include="shadowFragmentShader.glsl">
+      <Filter>Shaders</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="glm\detail\func_common.inl">
