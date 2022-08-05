@@ -13,6 +13,20 @@
 #include "elbow_renderable.h"
 #include "straight_renderable.h"
 #include "cabin_renderable.h"
+#include "shrine_renderable.h"
+#include "ruins_renderable.h"
+#include "well_renderable.h"
+#include "large_rock_1_renderable.h"
+#include "large_rock_2_renderable.h"
+#include "large_rock_3_renderable.h"
+#include "medium_rock_1_renderable.h"
+#include "medium_rock_2_renderable.h"
+#include "small_rock_1_renderable.h"
+#include "small_rock_2_renderable.h"
+#include "tree1_renderable.h"
+#include "tree2_renderable.h"
+#include "tree3_renderable.h"
+#include "tree4_renderable.h"
 
 #include <iostream>
 #include <filesystem>
@@ -20,20 +34,35 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void processInput(GLFWwindow* window);
 void renderScene(Shader shader, vector<Renderable*> models);
 void generateTerrain();
-void generateLights(Shader shader, glm::vec3* pointLightPositions);
+void generateRenderArray(vector<Renderable*> models);
+void generateLights(Shader shader, vector<glm::vec3> pointLightPositions);
+vector<glm::vec3> pointLightPositions;
+
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
+vector<glm::mat4> positions;
+vector<glm::vec3> scalings;
+vector<float> rotations;
+vector<int> modelsToRender;
+
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera cabin(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera well(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera ruins(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera shrine(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera* currentCam = &camera;
 glm::vec3 lightPos;
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
+int activeCam = 0;
 
 // timing
 float deltaTime = 0.0f;
@@ -48,6 +77,8 @@ std::string terrainData[terrainHeight][terrainWidth];
 
 int main()
 {
+    srand(time(NULL));
+
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -72,6 +103,7 @@ int main()
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetKeyCallback(window, key_callback);
 
     // tell GLFW to capture our mouse
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -116,19 +148,30 @@ int main()
     models.push_back(new StraightPath);
     models.push_back(new ElbowPath);
     models.push_back(new Cabin);
+    models.push_back(new Shrine);
+    models.push_back(new Ruins);
+    models.push_back(new Well);
+    models.push_back(new LargeRock1);
+    models.push_back(new LargeRock2);
+    models.push_back(new LargeRock3);
+    models.push_back(new MediumRock1);
+    models.push_back(new MediumRock2);
+    models.push_back(new SmallRock1);
+    models.push_back(new SmallRock2);
+    models.push_back(new Tree1);
+    models.push_back(new Tree2);
+    models.push_back(new Tree3);
+    models.push_back(new Tree4);
+    models.push_back(new Tree1);
 
-    srand(time(NULL));
+    generateRenderArray(models);
 
-    glm::vec3 pointLightPositions[] = {
-        glm::vec3((float)(rand() % 100),  10.0f,  (float)(rand() % 100)),
-        glm::vec3((float)(rand() % 100), 10.0f, (float)(rand() % 100)),
-        glm::vec3((float)(rand() % 100),  10.0f, (float)(rand() % 100)),
-        glm::vec3((float)(rand() % 100),  10.0f,(float)(rand() % 100))
-    };
+
+
 
     // configure depth map FBO
     // -----------------------
-    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+    const unsigned int SHADOW_WIDTH = 1024*4, SHADOW_HEIGHT = 1024*4;
     unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create depth texture
@@ -178,13 +221,38 @@ int main()
         defaultShader.use();
 
         // view/projection transformations
-        lightPos = glm::vec3(-30.0f, 40.0f, 50.0f);
-        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-        glm::mat4 view = camera.GetViewMatrix();
+        lightPos = glm::vec3(-30.0f, 60.0f, 50.0f);
         //glm::mat4 projection = glm::ortho(-60.0f,60.0f, -30.0f, 30.0f, 1.0f, 150.0f);
         //glm::mat4 view = glm::lookAt(lightPos, glm::vec3(50.0f, 0.0f, 50.0f), glm::vec3(0.0, 1.0, 0.0));
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
         defaultShader.setMat4("projection", projection);
-        defaultShader.setMat4("view", view);
+
+        if (activeCam == 0)
+        {
+            glm::mat4 view = camera.GetViewMatrix();
+            defaultShader.setMat4("view", view);
+        }
+        else if (activeCam == 1)
+        {
+            glm::mat4 view = cabin.GetViewMatrix();
+            defaultShader.setMat4("view", view);
+        }
+        else if (activeCam == 2)
+        {
+            glm::mat4 view = shrine.GetViewMatrix();
+            defaultShader.setMat4("view", view);
+        }
+        else if (activeCam == 3)
+        {
+            glm::mat4 view = ruins.GetViewMatrix();
+            defaultShader.setMat4("view", view);
+        }
+        else if (activeCam == 4)
+        {
+            glm::mat4 view = well.GetViewMatrix();
+            defaultShader.setMat4("view", view);
+        }
+
         generateLights(defaultShader, pointLightPositions);
 
         //shader.setVec3("dirLight.direction", 0.2f, -1.0f, 0.3f);
@@ -194,7 +262,7 @@ int main()
         glm::mat4 lightSpaceMatrix;
         float near_plane = 1.0f, far_plane = 1000.0f;
         //lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane); // note that if you use a perspective projection matrix you'll have to change the light position as the current light position isn't enough to reflect the whole scene
-        lightProjection = glm::ortho(-60.0f, 60.0f, -25.0f, 25.0f, 1.0f, 150.0f);
+        lightProjection = glm::ortho(-60.0f, 60.0f, -35.0f, 35.0f, 1.0f, 150.0f);
         lightView = glm::lookAt(lightPos, glm::vec3(50.0f, 0.0f, 50.0f), glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
         // render scene from light's point of view
@@ -240,14 +308,18 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime*6.0f);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime*6.0f);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime*6.0f);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime*6.0f);
+
+    if (true)
+    {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            currentCam->ProcessKeyboard(FORWARD, deltaTime*6.0f);
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            currentCam->ProcessKeyboard(BACKWARD, deltaTime*6.0f);
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            currentCam->ProcessKeyboard(LEFT, deltaTime*6.0f);
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            currentCam->ProcessKeyboard(RIGHT, deltaTime*6.0f);
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -279,97 +351,22 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     lastX = xpos;
     lastY = ypos;
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+    currentCam->ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    camera.ProcessMouseScroll(static_cast<float>(yoffset));
+    currentCam->ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
 void renderScene(Shader shader, vector<Renderable*> models)
 {
-    // [0] = grass
-    // [1] = straightpath
-    // [2] = elbowpath
-    // [3] = cabin
-    //
-    
-    glm::mat4 model = glm::mat4(1.0f);
-
-    for (int i = 0; i < terrainHeight; i++)
+    for (int i = 0; i < modelsToRender.size(); i++)
     {
-        for (int j = 0; j < terrainWidth; j++)
-        {
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3((float)j * 10.0f, 0.0f, (float)i * 10.0f));
-            if (terrainData[i][j].compare("pV") == 0)
-            {
-                shader.setMat4("model", model);
-                models[1]->Draw(model, shader);
-            }
-            else if (terrainData[i][j].compare("pH") == 0)
-            {
-                model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                shader.setMat4("model", model);
-                models[1]->Draw(model, shader);
-            }
-            else if (terrainData[i][j].compare("pNW") == 0)
-            {
-                model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                shader.setMat4("model", model);
-                models[2]->Draw(model, shader);
-            }
-            else if (terrainData[i][j].compare("pSW") == 0)
-            {
-                model = glm::rotate(model, glm::radians(270.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                shader.setMat4("model", model);
-                models[2]->Draw(model, shader);
-            }
-            else if (terrainData[i][j].compare("pNE") == 0)
-            {
-                model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                shader.setMat4("model", model);
-                models[2]->Draw(model, shader);
-            }
-            else if (terrainData[i][j].compare("pSE") == 0)
-            {
-                model = glm::rotate(model, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                shader.setMat4("model", model);
-                models[2]->Draw(model, shader);
-            }
-            else if (terrainData[i][j].compare("1") == 0)
-            {
-                shader.setMat4("model", model);
-                models[0]->Draw(model, shader);
-            }
-            else if (terrainData[i][j].compare("2") == 0)
-            {
-                shader.setMat4("model", model);
-                models[3]->Draw(model, shader);
-            }
-            else
-            {
-                shader.setMat4("model", model);
-                models[0]->Draw(model, shader);
-            }
-        }
+        models[modelsToRender[i]]->Draw(positions[i], shader, scalings[i], rotations[i]);
     }
-
-
-    //shader.setMat4("model", model);
-    //elbow.Draw(shader);
-
-    //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-    ////model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-    //model = glm::mat4(1.0f);
-    //model = glm::translate(model, glm::vec3(0.0f, 0.0f, 10.0f)); // translate it down so it's at the center of the scene
-    ////model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
-    //shader.setMat4("model", model);
-    //obj.Draw(shader);
-
 }
 
 void generateTerrain()
@@ -388,7 +385,6 @@ void generateTerrain()
 
     while (!pathAccepted)
     {
-
         for (int i = 0; i < 10; i++)
         {
             for (int j = 0; j < 10; j++)
@@ -396,14 +392,12 @@ void generateTerrain()
                 terrainData[i][j] = "0";
             }
         }
-    
 
         bool hasShrine = false;
         bool hasCabin = false;
         bool hasItem3 = false;
         bool hasItem4 = false;
         int pathRand;
-        srand(time(NULL));
         int sideStart = rand() % 4;
         int pathStart;
         int pathPos;
@@ -416,6 +410,7 @@ void generateTerrain()
             terrainData[pathStart / 10][pathStart % 10] = "pV";
             pathDir = 3;
             nextDir = 0;
+            camera.Front = glm::normalize(glm::vec3(-1.0f, 0.0f, 0.0f));
         }
         else if (sideStart == 1)
         {
@@ -424,6 +419,8 @@ void generateTerrain()
             terrainData[pathStart / 10][pathStart % 10] = "pH";
             pathDir = 4;
             nextDir = 0;
+            camera.Front = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
+
         }
         else if (sideStart == 2)
         {
@@ -432,6 +429,7 @@ void generateTerrain()
             terrainData[pathStart / 10][pathStart % 10] = "pV";
             pathDir = 1;
             nextDir = 0;
+            camera.Front = glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f));
         }
         else
         {
@@ -440,14 +438,14 @@ void generateTerrain()
             terrainData[pathStart / 10][pathStart % 10] = "pH";
             pathDir = 2;
             nextDir = 0;
+            camera.Front = glm::normalize(glm::vec3(0.0f, 0.0f, 1.0f));
         }
         int pathTry;
-    
         bool columnHasPath = true;
         bool pathDone = false;
         bool pathAdded = false;
-
-
+        camera.Position = glm::vec3(2.5f + (float)(pathStart % 10) * 10.0f, 2.0f, 2.5f + (float)(pathStart / 10) * 10.0f);
+        
         while (!pathDone)
         {
             pathAdded = false;
@@ -658,16 +656,12 @@ void generateTerrain()
             }
         }
 
-
-
         for (int i = 0; i < 10; i++)
         {
             for (int j = 0; j < 10; j++) 
             {
                 if (terrainData[i][j].compare("0") == 0 && (hasShrine == false || hasCabin == false || hasItem3 == false || hasItem4 == false))
                 {
-                    //int g = rand() % 25;
-                    //cout << g << endl;
                     if (rand() % 25 == 0)
                     {
                         bool itemTaken = false;
@@ -704,7 +698,7 @@ void generateTerrain()
             }
         }
         char temp;
-        cout << "generated path: " << endl;
+        std::cout << "generated path: " << endl;
         for (int i = 0; i < terrainHeight; ++i)
         {
             for (int j = 0; j < terrainWidth; ++j)
@@ -713,8 +707,8 @@ void generateTerrain()
             }
             std::cout << std::endl;
         }
-        cout << "press n to regenerate path" << endl;
-        cin >> temp;
+        std::cout << "press n to regenerate path" << endl;
+        std::cin >> temp;
         if (temp == 'n')
             continue;
         else
@@ -722,19 +716,146 @@ void generateTerrain()
     }
 }
 
-void generateLights(Shader shader, glm::vec3* pointLightPositions)
+void generateRenderArray(vector<Renderable*> models)
 {
-    
+    glm::mat4 model = glm::mat4(1.0f);
+    for (int i = 0; i < terrainHeight; i++)
+    {
+        for (int j = 0; j < terrainWidth; j++)
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3((float)j * 10.0f, 0.0f, (float)i * 10.0f));
+            if (terrainData[i][j].compare("pV") == 0)
+            {
+                positions.push_back(model);
+                modelsToRender.push_back(1);
+                scalings.push_back(models[1]->generateScalings());
+                rotations.push_back(models[1]->generateRotations());
+            }
+            else if (terrainData[i][j].compare("pH") == 0)
+            {
+                model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                positions.push_back(model);
+                modelsToRender.push_back(1);
+                scalings.push_back(models[1]->generateScalings());
+                rotations.push_back(models[1]->generateRotations());
+            }
+            else if (terrainData[i][j].compare("pNW") == 0)
+            {
+                model = glm::rotate(model, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                positions.push_back(model);
+                modelsToRender.push_back(2);
+                scalings.push_back(models[2]->generateScalings());
+                rotations.push_back(models[2]->generateRotations());
+            }
+            else if (terrainData[i][j].compare("pSW") == 0)
+            {
+                model = glm::rotate(model, glm::radians(270.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                positions.push_back(model);
+                modelsToRender.push_back(2);
+                scalings.push_back(models[2]->generateScalings());
+                rotations.push_back(models[2]->generateRotations());
+            }
+            else if (terrainData[i][j].compare("pNE") == 0)
+            {
+                model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                positions.push_back(model);
+                modelsToRender.push_back(2);
+                scalings.push_back(models[2]->generateScalings());
+                rotations.push_back(models[2]->generateRotations());
+            }
+            else if (terrainData[i][j].compare("pSE") == 0)
+            {
+                model = glm::rotate(model, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                positions.push_back(model);
+                modelsToRender.push_back(2);
+                scalings.push_back(models[2]->generateScalings());
+                rotations.push_back(models[2]->generateRotations());
+            }
+            else if (terrainData[i][j].compare("1") == 0)
+            {
+                positions.push_back(model);
+                modelsToRender.push_back(0);
+                scalings.push_back(models[0]->generateScalings());
+                rotations.push_back(models[0]->generateRotations());
+                positions.push_back(model);
+                modelsToRender.push_back(3);
+                scalings.push_back(models[3]->generateScalings());
+                rotations.push_back(models[3]->generateRotations());
+                pointLightPositions.push_back(glm::vec3((float)j * 10.0f-5.0f, 10.0f, (float)i * 10.0f));
+                cabin.Position = glm::vec3((float)j * 10.0f - 3.0f, 10.0f, (float)i * 10.0f - 3.0f);
+            }
+            else if (terrainData[i][j].compare("2") == 0)
+            {
+                positions.push_back(model);
+                modelsToRender.push_back(0);
+                scalings.push_back(models[0]->generateScalings());
+                rotations.push_back(models[0]->generateRotations());
+                positions.push_back(model);
+                modelsToRender.push_back(4);
+                scalings.push_back(models[4]->generateScalings());
+                rotations.push_back(models[4]->generateRotations());
+                pointLightPositions.push_back(glm::vec3((float)j * 10.0f - 5.0f, 10.0f, (float)i * 10.0f));
+                shrine.Position = glm::vec3((float)j * 10.0f - 3.0f, 10.0f, (float)i * 10.0f - 3.0f);
+            }
+            else if (terrainData[i][j].compare("3") == 0)
+            {
+                positions.push_back(model);
+                modelsToRender.push_back(0);
+                scalings.push_back(models[0]->generateScalings());
+                rotations.push_back(models[0]->generateRotations());
+                positions.push_back(model);
+                modelsToRender.push_back(5);
+                scalings.push_back(models[5]->generateScalings());
+                rotations.push_back(models[5]->generateRotations());
+                pointLightPositions.push_back(glm::vec3((float)j * 10.0f-5.0f, 10.0f, (float)i * 10.0f));
+                ruins.Position = glm::vec3((float)j * 10.0f - 3.0f, 10.0f, (float)i * 10.0f - 3.0f);
+            }
+            else if (terrainData[i][j].compare("4") == 0)
+            {
+                positions.push_back(model);
+                modelsToRender.push_back(0);
+                scalings.push_back(models[0]->generateScalings());
+                rotations.push_back(models[0]->generateRotations());
+                positions.push_back(model);
+                modelsToRender.push_back(6);
+                scalings.push_back(models[6]->generateScalings());
+                rotations.push_back(models[6]->generateRotations());
+                pointLightPositions.push_back(glm::vec3((float)j * 10.0f-5.0f, 10.0f, (float)i * 10.0f));
+                well.Position = glm::vec3((float)j * 10.0f - 3.0f, 10.0f, (float)i * 10.0f - 3.0f);
+            }
+            else
+            {
+                int r;
+                positions.push_back(model);
+                modelsToRender.push_back(0);
+                scalings.push_back(models[0]->generateScalings());
+                rotations.push_back(models[0]->generateRotations());
+                model = glm::translate(model, glm::vec3((float)(rand() % 80 - 40) * 0.1f, 0.0f, (float)(rand() % 80 - 40) * 0.1f));
+                positions.push_back(model);
+                r = (rand() % 12) + 7;
+                modelsToRender.push_back(r);
+                scalings.push_back(models[r]->generateScalings());
+                rotations.push_back(models[r]->generateRotations());
+                
+            }
+        }
+    }
+    while (pointLightPositions.size() < 4)
+        pointLightPositions.push_back(glm::vec3((float)(rand() % 100), 10.0f, (float)(rand() % 100)));
+}
 
+void generateLights(Shader shader, vector<glm::vec3> pointLightPositions)
+{
         shader.setFloat("material.shininess", 16.0f);
         // directional light
         shader.setVec3("dirLight.direction", 0.2f, -1.0f, 0.3f);
-        shader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
-        shader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
-        shader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
+        shader.setVec3("dirLight.ambient", 0.01f, 0.01f, 0.02f);
+        shader.setVec3("dirLight.diffuse", 0.1f, 0.1f, 0.2f);
+        shader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.8f);
         //light 1
         shader.setVec3("pointLights[0].position", pointLightPositions[0]);
-        shader.setVec3("pointLights[0].ambient", 0.05f, 0.05f, 0.05f);
+        shader.setVec3("pointLights[0].ambient", 0.001f, 0.001f, 0.001f);
         shader.setVec3("pointLights[0].diffuse", 0.8f, 0.8f, 0.8f);
         shader.setVec3("pointLights[0].specular", 1.0f, 1.0f, 1.0f);
         shader.setFloat("pointLights[0].constant", 1.0f);
@@ -742,7 +863,7 @@ void generateLights(Shader shader, glm::vec3* pointLightPositions)
         shader.setFloat("pointLights[0].quadratic", 0.032f);
         //slight 2
         shader.setVec3("pointLights[1].position", pointLightPositions[1]);
-        shader.setVec3("pointLights[1].ambient", 0.05f, 0.05f, 0.05f);
+        shader.setVec3("pointLights[1].ambient", 0.001f, 0.001f, 0.001f);
         shader.setVec3("pointLights[1].diffuse", 0.8f, 0.8f, 0.8f);
         shader.setVec3("pointLights[1].specular", 1.0f, 1.0f, 1.0f);
         shader.setFloat("pointLights[1].constant", 1.0f);
@@ -750,7 +871,7 @@ void generateLights(Shader shader, glm::vec3* pointLightPositions)
         shader.setFloat("pointLights[1].quadratic", 0.032f);
         //slight 3
         shader.setVec3("pointLights[2].position", pointLightPositions[2]);
-        shader.setVec3("pointLights[2].ambient", 0.05f, 0.05f, 0.05f);
+        shader.setVec3("pointLights[2].ambient", 0.001f, 0.001f, 0.001f);
         shader.setVec3("pointLights[2].diffuse", 0.8f, 0.8f, 0.8f);
         shader.setVec3("pointLights[2].specular", 1.0f, 1.0f, 1.0f);
         shader.setFloat("pointLights[2].constant", 1.0f);
@@ -758,21 +879,39 @@ void generateLights(Shader shader, glm::vec3* pointLightPositions)
         shader.setFloat("pointLights[2].quadratic", 0.032f);
         //slight 4
         shader.setVec3("pointLights[3].position", pointLightPositions[3]);
-        shader.setVec3("pointLights[3].ambient", 0.05f, 0.05f, 0.05f);
+        shader.setVec3("pointLights[3].ambient", 0.001f, 0.001f, 0.001f);
         shader.setVec3("pointLights[3].diffuse", 0.8f, 0.8f, 0.8f);
         shader.setVec3("pointLights[3].specular", 1.0f, 1.0f, 1.0f);
         shader.setFloat("pointLights[3].constant", 1.0f);
         shader.setFloat("pointLights[3].linear", 0.09f);
         shader.setFloat("pointLights[3].quadratic", 0.032f);
-        //sght
-        shader.setVec3("spotLight.position", camera.Position);
-        shader.setVec3("spotLight.direction", camera.Front);
-        shader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
-        shader.setVec3("spotLight.diffuse", 0.0f, 0.0f, 0.0f);
-        shader.setVec3("spotLight.specular", 0.0f, 0.0f, 0.0f);
-        shader.setFloat("spotLight.constant", 1.0f);
-        shader.setFloat("spotLight.linear", 0.09f);
-        shader.setFloat("spotLight.quadratic", 0.032f);
-        shader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
-        shader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));     
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_1 && action == GLFW_PRESS)
+    {
+        activeCam = 1;
+        currentCam = &cabin;
+    }
+    if (key == GLFW_KEY_2 && action == GLFW_PRESS)
+    {
+        activeCam = 2;
+        currentCam = &shrine;
+    }
+    if (key == GLFW_KEY_3 && action == GLFW_PRESS)
+    {
+        activeCam = 3;
+        currentCam = &ruins;
+    }
+    if (key == GLFW_KEY_4 && action == GLFW_PRESS)
+    {
+        activeCam = 4;
+        currentCam = &well;
+    }
+    if (key == GLFW_KEY_R && action == GLFW_PRESS)
+    {
+        activeCam = 0;
+        currentCam = &camera;
+    }
 }

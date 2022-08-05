@@ -24,9 +24,11 @@ public:
     vector<glm::vec3> maxScalings;
 
     // render renderable
-    virtual void Draw(glm::mat4 position, Shader& shader) = 0;
+    virtual void Draw(glm::mat4 position, Shader& shader, glm::vec3 scaling, float rotation) = 0;
+    virtual glm::vec3 generateScalings() = 0;
+    virtual float generateRotations() = 0;
         //cout << "drawing" << endl;
-        //srand(time(NULL));
+        //
         //float rx, ry, rz, sx, sy, sz;
         //glm::mat4 temp = glm::mat4(1.0f);
         //for (int i = 0; i < models.size(); i++)
