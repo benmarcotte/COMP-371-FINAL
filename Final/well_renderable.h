@@ -24,6 +24,7 @@ public:
     vector<glm::vec3> positions;
     vector<glm::vec3> minScalings;
     vector<glm::vec3> maxScalings;
+    glm::vec2 size;
 
     Well()
     {
@@ -31,6 +32,7 @@ public:
         positions.push_back(glm::vec3(0.0f));
         minScalings.push_back(glm::vec3(1.0f));
         maxScalings.push_back(glm::vec3(1.0f));
+        size = glm::vec2(2.0f,2.0f);
         cout << "constructed elbow" << endl;
     }
 
@@ -49,6 +51,10 @@ public:
             sz = minScalings[i].z + ((maxScalings[i].z - minScalings[i].z) * rz);
         }
         return glm::vec3(sx, sy, sz);
+    }
+    glm::vec2 getSize()
+    {
+        return glm::vec2(1.0f, 1.0f);
     }
     float generateRotations()
     {

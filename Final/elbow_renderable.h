@@ -49,6 +49,10 @@ public:
         }
         return glm::vec3(sx, sy, sz);
     }
+    glm::vec2 getSize()
+    {
+        return glm::vec2(3.0f, 3.0f);
+    }
     float generateRotations()
     {
         return 0.0f;

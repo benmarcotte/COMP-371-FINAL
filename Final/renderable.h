@@ -22,11 +22,13 @@ public:
     vector<glm::vec3> positions;
     vector<glm::vec3> minScalings;
     vector<glm::vec3> maxScalings;
+    glm::vec2 size;
 
     // render renderable
     virtual void Draw(glm::mat4 position, Shader& shader, glm::vec3 scaling, float rotation) = 0;
     virtual glm::vec3 generateScalings() = 0;
     virtual float generateRotations() = 0;
+    virtual glm::vec2 getSize() = 0;
         //cout << "drawing" << endl;
         //
         //float rx, ry, rz, sx, sy, sz;

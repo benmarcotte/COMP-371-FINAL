@@ -54,7 +54,10 @@ public:
     {
         return 0.0f;
     }
-
+    glm::vec2 getSize()
+    {
+        return glm::vec2(3.0f, 3.0f);
+    }
     // render renderable
     void Draw(glm::mat4 position, Shader& shader, glm::vec3 scaling, float rotation)
     {

@@ -14,6 +14,7 @@
 #include "straight_renderable.h"
 #include "cabin_renderable.h"
 #include "shrine_renderable.h"
+#include "skybox_renderable.h"
 #include "ruins_renderable.h"
 #include "well_renderable.h"
 #include "large_rock_1_renderable.h"
@@ -38,6 +39,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void processInput(GLFWwindow* window);
 void renderScene(Shader shader, vector<Renderable*> models);
 void generateTerrain();
+bool checkCollisions(int i, glm::vec2 currentPosition);
 void generateRenderArray(vector<Renderable*> models);
 void generateLights(Shader shader, vector<glm::vec3> pointLightPositions);
 vector<glm::vec3> pointLightPositions;
@@ -45,12 +47,14 @@ vector<glm::vec3> pointLightPositions;
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+bool colliding;
 
 vector<glm::mat4> positions;
+vector<glm::vec2> collisionPositions;
 vector<glm::vec3> scalings;
 vector<float> rotations;
 vector<int> modelsToRender;
-
+vector<glm::vec2> modelSizes;
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 Camera cabin(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -58,6 +62,7 @@ Camera well(glm::vec3(0.0f, 0.0f, 3.0f));
 Camera ruins(glm::vec3(0.0f, 0.0f, 3.0f));
 Camera shrine(glm::vec3(0.0f, 0.0f, 3.0f));
 Camera* currentCam = &camera;
+glm::vec3 currentPosition;
 glm::vec3 lightPos;
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
@@ -118,7 +123,7 @@ int main()
 
     // generate terrain
     generateTerrain();
-    
+
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     //stbi_set_flip_vertically_on_load(true);
 
@@ -132,16 +137,6 @@ int main()
     Shader shadowShader("shadowVertexShader.glsl", "shadowFragmentShader.glsl");
     // load models
     // -----------
-    //Model ourModel("resources/objects/backpack/backpack.obj");
-    //Model ourModel2("resources/objects/tree2/tree.obj");
-    //Model ourModel3("resources/objects/tree3/tree4.obj");
-    //Model straight("resources/objects/straight_path/straight_path.obj");
-    //Model elbow("resources/objects/elbow_path/elbow_path.obj");
-    //Model grass("resources/objects/grass/grass.obj");
-    //Model shrine("resources/objects/shrine/shrine.obj");
-    //Model cabin("resources/objects/cabin/cabin.obj");
-
-
     vector<Renderable*> models;
     
     models.push_back(new Grass);
@@ -166,6 +161,7 @@ int main()
 
     generateRenderArray(models);
 
+    Skybox skybox = Skybox();
 
 
 
@@ -210,8 +206,8 @@ int main()
 
         // input
         // -----
+        
         processInput(window);
-
         // render
         // ------
         glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
@@ -226,6 +222,8 @@ int main()
         //glm::mat4 view = glm::lookAt(lightPos, glm::vec3(50.0f, 0.0f, 50.0f), glm::vec3(0.0, 1.0, 0.0));
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
         defaultShader.setMat4("projection", projection);
+        currentPosition = currentCam->Position;
+        
 
         if (activeCam == 0)
         {
@@ -252,7 +250,6 @@ int main()
             glm::mat4 view = well.GetViewMatrix();
             defaultShader.setMat4("view", view);
         }
-
         generateLights(defaultShader, pointLightPositions);
 
         //shader.setVec3("dirLight.direction", 0.2f, -1.0f, 0.3f);
@@ -287,8 +284,8 @@ int main()
         glBindTexture(GL_TEXTURE_2D, depthMap);
 
         renderScene(defaultShader, models);
-
-
+        skybox.Draw(glm::mat4(1.0f), defaultShader, glm::vec3(1.0f), 0.0f);
+        colliding = false;
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -307,9 +304,54 @@ void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    colliding = false;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
 
+        for (int i = 0; i < collisionPositions.size(); i++) {
+            if(checkCollisions(i, glm::vec2(currentCam->Position.x + currentCam->Front.x * deltaTime * 6.0f * currentCam->MovementSpeed, currentCam->Position.y + currentCam->Front.y * deltaTime * 6.0f * currentCam->MovementSpeed)))
+                colliding = true;
+        }
+        currentCam->ProcessKeyboard(FORWARD, deltaTime * 6.0f * !colliding);
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
 
-    if (true)
+        for (int i = 0; i < collisionPositions.size(); i++) {
+            if (checkCollisions(i, glm::vec2(currentCam->Position.x - currentCam->Front.x * deltaTime * 6.0f * currentCam->MovementSpeed, currentCam->Position.y - currentCam->Front.y * deltaTime * 6.0f * currentCam->MovementSpeed)))
+                colliding = true;
+        }
+        currentCam->ProcessKeyboard(BACKWARD, deltaTime * 6.0f * !colliding);
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+
+        for (int i = 0; i < collisionPositions.size(); i++) {
+            if (checkCollisions(i, glm::vec2(currentCam->Position.x + currentCam->Right.x * deltaTime * 6.0f * currentCam->MovementSpeed, currentCam->Position.y + currentCam->Right.y * deltaTime * 6.0f * currentCam->MovementSpeed)))
+                colliding = true;
+        }
+        currentCam->ProcessKeyboard(LEFT, deltaTime * 6.0f * !colliding);
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    {
+
+        for (int i = 0; i < collisionPositions.size(); i++) {
+            if (checkCollisions(i, glm::vec2(currentCam->Position.x - currentCam->Right.x * deltaTime * 6.0f * currentCam->MovementSpeed, currentCam->Position.y - currentCam->Right.y * deltaTime * 6.0f * currentCam->MovementSpeed)))
+                colliding = true;
+        }
+        currentCam->ProcessKeyboard(RIGHT, deltaTime * 6.0f * !colliding);
+    }
+
+    /*for (int i = 0; i < modelSizes.size(); i++)
+    {
+        if (checkCollisions(i))
+        {
+            colliding = true;
+            cout << "colliding";
+        }
+    }
+
+    if (!colliding)
     {
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
             currentCam->ProcessKeyboard(FORWARD, deltaTime*6.0f);
@@ -320,6 +362,17 @@ void processInput(GLFWwindow* window)
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
             currentCam->ProcessKeyboard(RIGHT, deltaTime*6.0f);
     }
+    else
+    {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            currentCam->ProcessKeyboard(FORWARD, deltaTime * -6.0f);
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            currentCam->ProcessKeyboard(BACKWARD, deltaTime * -6.0f);
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            currentCam->ProcessKeyboard(LEFT, deltaTime * -6.0f);
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            currentCam->ProcessKeyboard(RIGHT, deltaTime * -6.0f);
+    }*/
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -784,6 +837,9 @@ void generateRenderArray(vector<Renderable*> models)
                 rotations.push_back(models[3]->generateRotations());
                 pointLightPositions.push_back(glm::vec3((float)j * 10.0f-5.0f, 10.0f, (float)i * 10.0f));
                 cabin.Position = glm::vec3((float)j * 10.0f - 3.0f, 10.0f, (float)i * 10.0f - 3.0f);
+                collisionPositions.push_back(glm::vec2((float)j * 10.0f, (float)i * 10.0f));
+                modelSizes.push_back(models[3]->getSize());
+
             }
             else if (terrainData[i][j].compare("2") == 0)
             {
@@ -797,6 +853,8 @@ void generateRenderArray(vector<Renderable*> models)
                 rotations.push_back(models[4]->generateRotations());
                 pointLightPositions.push_back(glm::vec3((float)j * 10.0f - 5.0f, 10.0f, (float)i * 10.0f));
                 shrine.Position = glm::vec3((float)j * 10.0f - 3.0f, 10.0f, (float)i * 10.0f - 3.0f);
+                collisionPositions.push_back(glm::vec2((float)j * 10.0f, (float)i * 10.0f));
+                modelSizes.push_back(models[4]->getSize());
             }
             else if (terrainData[i][j].compare("3") == 0)
             {
@@ -810,6 +868,8 @@ void generateRenderArray(vector<Renderable*> models)
                 rotations.push_back(models[5]->generateRotations());
                 pointLightPositions.push_back(glm::vec3((float)j * 10.0f-5.0f, 10.0f, (float)i * 10.0f));
                 ruins.Position = glm::vec3((float)j * 10.0f - 3.0f, 10.0f, (float)i * 10.0f - 3.0f);
+                collisionPositions.push_back(glm::vec2((float)j * 10.0f, (float)i * 10.0f));
+                modelSizes.push_back(models[5]->getSize());
             }
             else if (terrainData[i][j].compare("4") == 0)
             {
@@ -823,21 +883,27 @@ void generateRenderArray(vector<Renderable*> models)
                 rotations.push_back(models[6]->generateRotations());
                 pointLightPositions.push_back(glm::vec3((float)j * 10.0f-5.0f, 10.0f, (float)i * 10.0f));
                 well.Position = glm::vec3((float)j * 10.0f - 3.0f, 10.0f, (float)i * 10.0f - 3.0f);
+                collisionPositions.push_back(glm::vec2((float)j * 10.0f, (float)i * 10.0f));
+                modelSizes.push_back(models[6]->size);
             }
             else
             {
                 int r;
+                float x, y;
                 positions.push_back(model);
                 modelsToRender.push_back(0);
                 scalings.push_back(models[0]->generateScalings());
                 rotations.push_back(models[0]->generateRotations());
-                model = glm::translate(model, glm::vec3((float)(rand() % 80 - 40) * 0.1f, 0.0f, (float)(rand() % 80 - 40) * 0.1f));
+                x = (float)(rand() % 80 - 40) * 0.1f;
+                y = (float)(rand() % 80 - 40) * 0.1f;
+                model = glm::translate(model, glm::vec3(x, 0.0f, y));
                 positions.push_back(model);
                 r = (rand() % 12) + 7;
                 modelsToRender.push_back(r);
                 scalings.push_back(models[r]->generateScalings());
                 rotations.push_back(models[r]->generateRotations());
-                
+                collisionPositions.push_back(glm::vec2(((float)j * 10.0f)+x, ((float)i * 10.0f)+y));
+                modelSizes.push_back(models[r]->getSize());
             }
         }
     }
@@ -914,4 +980,14 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         activeCam = 0;
         currentCam = &camera;
     }
+}
+
+bool checkCollisions(int i, glm::vec2 currentPosition)
+{
+    bool collisionX = collisionPositions[i].x + modelSizes[i].x >= currentPosition.x &&
+        currentPosition.x + 1.0f >= collisionPositions[i].x + modelSizes[i].x;
+    bool collisionY = collisionPositions[i].y + modelSizes[i].y >= currentPosition.y &&
+        currentPosition.y + 1.0f >= collisionPositions[i].y + modelSizes[i].y;
+
+    return collisionX && collisionY;
 }

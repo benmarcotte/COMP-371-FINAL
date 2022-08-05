@@ -423,6 +423,7 @@
     <ClInclude Include="glm\vector_relational.hpp" />
     <ClInclude Include="elbow_renderable.h" />
     <ClInclude Include="grass_renderable.h" />
+    <ClInclude Include="skybox_renderable.h" />
     <ClInclude Include="well_renderable.h" />
     <ClInclude Include="ruins_renderable.h" />
     <ClInclude Include="shrine_renderable.h" />

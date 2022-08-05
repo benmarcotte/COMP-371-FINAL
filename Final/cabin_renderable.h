@@ -23,6 +23,7 @@ public:
     vector<glm::vec3> positions;
     vector<glm::vec3> minScalings;
     vector<glm::vec3> maxScalings;
+    glm::vec2 size;
 
     Cabin()
     {
@@ -30,9 +31,13 @@ public:
         positions.push_back(glm::vec3(0.0f));
         minScalings.push_back(glm::vec3(1.0f));
         maxScalings.push_back(glm::vec3(1.0f));
+        size = glm::vec2(4.0f,4.0f);
         cout << "constructed elbow" << endl;
     }
-
+    glm::vec2 getSize()
+    {
+        return glm::vec2(1.0f, 1.0f);
+    }
     // render renderable
     glm::vec3 generateScalings()
     {
