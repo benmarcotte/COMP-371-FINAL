@@ -16,6 +16,7 @@
 #include "shrine_renderable.h"
 #include "ruins_renderable.h"
 #include "well_renderable.h"
+#include "skybox_renderable.h"
 #include "large_rock_1_renderable.h"
 #include "large_rock_2_renderable.h"
 #include "large_rock_3_renderable.h"
