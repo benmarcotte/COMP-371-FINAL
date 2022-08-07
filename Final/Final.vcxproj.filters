@@ -956,6 +956,9 @@
     <ClInclude Include="well_renderable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="skybox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="vertexShader.glsl">
