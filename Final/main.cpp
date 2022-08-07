@@ -167,7 +167,7 @@ int main()
 
     generateRenderArray(models);
 
-
+    Skybox skybox = Skybox();
 
 
     // configure depth map FBO
@@ -288,7 +288,7 @@ int main()
         glBindTexture(GL_TEXTURE_2D, depthMap);
 
         renderScene(defaultShader, models);
-
+        skybox.Draw(glm::mat4(1.0f), defaultShader, glm::vec3(1.0f), 0.0f);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
