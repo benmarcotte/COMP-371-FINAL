@@ -956,7 +956,7 @@
     <ClInclude Include="well_renderable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="skybox.h">
+    <ClInclude Include="skybox_renderable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
